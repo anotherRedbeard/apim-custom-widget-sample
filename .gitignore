@@ -1,3 +1,7 @@
+# remove azurite files/folders
+__azurite*
+__*storage__
+
 /node_modules
 
 # production

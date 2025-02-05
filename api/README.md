@@ -53,16 +53,6 @@ The function expects the following JSON body in the request:
 
 The function returns a JSON response containing the newly created app registration details. If there is an error during the creation process, the function returns an appropriate error response.
 
-### Helper Methods
-
-#### CreateCorsResponse
-
-Creates a CORS response to handle preflight requests and set the necessary CORS headers.
-
-#### AuthenticateUser
-
-Authenticates the user by fetching their details from the APIM service using the provided token. Returns the user details and an authentication status.
-
 ### Services
 
 #### AuthenticationService
@@ -85,7 +75,21 @@ To run the project locally, use the following command:
 func start
 ```
 
-Make sure to provide the required environment variables in the `local.settings.json` file.
+Make sure to provide the required environment variables and CORS parameters in the `local.settings.json` file.  Here is an example that should work for local development:
+
+```json
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"
+  }
+  ,
+  "Host": {
+    "CORS": "*"
+  }
+}
+```
 
 ### Deployment
 
@@ -95,7 +99,7 @@ To deploy the project to Azure, use the following command:
 func azure functionapp publish <function-app-name>
 ```
 
-Replace <function-app-name> with the name of your Azure Functions app.
+Replace `<function-app-name>` with the name of your Azure Functions app.
 
 ### Additional Information
 

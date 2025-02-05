@@ -34,34 +34,23 @@ namespace APIMCustomerWidget.Functions
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", "options")] HttpRequestData req)
         {
             _logger.LogInformation("C# HTTP trigger function processed a request.");
-            // Setup CORS
-            var corsResponse = CreateCorsResponse(req);
-
-            if (req.Method == "OPTIONS")
+            //Authenticate user
+            var (user, authStatus) = await _authService.AuthenticateUser(req);
+            if (authStatus != AuthStatus.Valid || user == null)
             {
-                corsResponse.StatusCode = System.Net.HttpStatusCode.NoContent;
-                return corsResponse;
+                var response = req.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
+                response.Headers.Add("Content-Type", "application/json");
+                await response.WriteStringAsync("Unauthorized");
+                return response;
             }
-            else
-            {
-                //Authenticate user
-                var (user, authStatus) = await _authService.AuthenticateUser(req);
-                if (authStatus != AuthStatus.Valid || user == null)
-                {
-                    var response = req.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
-                    response.Headers.Add("Content-Type", "application/json");
-                    await response.WriteStringAsync("Unauthorized");
-                    return response;
-                }
 
-                // Call Graph API to get the app registrations
-                var appRegistrations = await _graphService.GetAppRegistrationsAsync();
-                var jsonResponse = req.CreateResponse(System.Net.HttpStatusCode.OK);
-                jsonResponse.Headers.Add("Content-Type", "application/json");
-                await jsonResponse.WriteStringAsync(appRegistrations != null ? JsonSerializer.Serialize(appRegistrations) : "No app registrations found");
+            // Call Graph API to get the app registrations
+            var appRegistrations = await _graphService.GetAppRegistrationsAsync();
+            var jsonResponse = req.CreateResponse(System.Net.HttpStatusCode.OK);
+            jsonResponse.Headers.Add("Content-Type", "application/json");
+            await jsonResponse.WriteStringAsync(appRegistrations != null ? JsonSerializer.Serialize(appRegistrations) : "No app registrations found");
 
-                return jsonResponse;
-            }
+            return jsonResponse;
         }
 
         /// <summary>
@@ -77,79 +66,59 @@ namespace APIMCustomerWidget.Functions
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", "options")] HttpRequestData req)
         {
             _logger.LogInformation("Processed PostAppRegistration request.");
-            // Setup CORS
-            var corsResponse = CreateCorsResponse(req);
-
-            if (req.Method == "OPTIONS")
+            //confirm request body is not empty
+            if (req.Body == null)
             {
-                corsResponse.StatusCode = System.Net.HttpStatusCode.NoContent;
-                return corsResponse;
+                var response = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
+                response.Headers.Add("Content-Type", "application/json");
+                await response.WriteStringAsync("Request body is empty");
+                return response;
             }
-            else
+
+            //Authenticate user
+            var (user, authStatus) = await _authService.AuthenticateUser(req);
+            if (authStatus != AuthStatus.Valid || user == null)
             {
-                //confirm request body is not empty
-                if (req.Body == null)
+                var response = req.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
+                response.Headers.Add("Content-Type", "application/json");
+                await response.WriteStringAsync("Unauthorized");
+                return response;
+            }
+
+            try 
+            {
+                // Call Graph API to create an app registration using the request body
+                var requestBody = await req.ReadAsStringAsync();
+                _logger.LogInformation($"Request body: {requestBody}");
+                if (string.IsNullOrEmpty(requestBody))
                 {
                     var response = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
                     response.Headers.Add("Content-Type", "application/json");
-                    await response.WriteStringAsync("Request body is empty");
+                    await response.WriteStringAsync("Request body is empty or null");
                     return response;
                 }
 
-                //Authenticate user
-                var (user, authStatus) = await _authService.AuthenticateUser(req);
-                if (authStatus != AuthStatus.Valid || user == null)
-                {
-                    var response = req.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
-                    response.Headers.Add("Content-Type", "application/json");
-                    await response.WriteStringAsync("Unauthorized");
-                    return response;
-                }
-
-                try 
-                {
-                    // Call Graph API to create an app registration using the request body
-                    var requestBody = await req.ReadAsStringAsync();
-                    _logger.LogInformation($"Request body: {requestBody}");
-                    if (string.IsNullOrEmpty(requestBody))
-                    {
-                        var response = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
-                        response.Headers.Add("Content-Type", "application/json");
-                        await response.WriteStringAsync("Request body is empty or null");
-                        return response;
-                    }
-
-                    var appRegistration = await _graphService.PostAppRegistrationAsync(requestBody);
-                    var jsonResponse = req.CreateResponse(System.Net.HttpStatusCode.OK);
-                    jsonResponse.Headers.Add("Content-Type", "application/json");
-                    await jsonResponse.WriteStringAsync(appRegistration != null ? JsonSerializer.Serialize(appRegistration) : "Error creating App Registration");
-                    return jsonResponse;
-                }
-                catch (ApplicationException ex)
-                {
-                    var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
-                    errorResponse.Headers.Add("Content-Type", "application/json");
-                    await errorResponse.WriteStringAsync(ex.Message);
-                    return errorResponse;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"An unexpected error occurred: {ex.Message}");
-                    var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
-                    errorResponse.Headers.Add("Content-Type", "application/json");
-                    await errorResponse.WriteStringAsync("An unexpected error occurred while processing your request.");
-                    return errorResponse;
-                }
+                var appRegistration = await _graphService.PostAppRegistrationAsync(requestBody);
+                var jsonResponse = req.CreateResponse(System.Net.HttpStatusCode.OK);
+                jsonResponse.Headers.Add("Content-Type", "application/json");
+                await jsonResponse.WriteStringAsync(appRegistration != null ? JsonSerializer.Serialize(appRegistration) : "Error creating App Registration");
+                return jsonResponse;
             }
-        }
-
-        private HttpResponseData CreateCorsResponse(HttpRequestData req)
-        {
-            var response = req.CreateResponse(System.Net.HttpStatusCode.OK);
-            response.Headers.Add("Access-Control-Allow-Origin", "*");
-            response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-            response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Authorization, x-ms-user-id, x-apim-management-url, x-apim-api-version");
-            return response;
+            catch (ApplicationException ex)
+            {
+                var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
+                errorResponse.Headers.Add("Content-Type", "application/json");
+                await errorResponse.WriteStringAsync(ex.Message);
+                return errorResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"An unexpected error occurred: {ex.Message}");
+                var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
+                errorResponse.Headers.Add("Content-Type", "application/json");
+                await errorResponse.WriteStringAsync("An unexpected error occurred while processing your request.");
+                return errorResponse;
+            }
         }
     }
 }
