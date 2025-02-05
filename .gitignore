@@ -7,4 +7,6 @@ __*storage__
 # production
 /dist
 
+# local development
 deploy.js
+.env.*

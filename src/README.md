@@ -18,7 +18,7 @@ This folder contains the source code for a custom widget for Azure API Managemen
 - **package.json**: Contains the project dependencies and scripts.
 - **tsconfig.json**: TypeScript configuration file.
 - **tsconfig.node.json**: TypeScript configuration file for Node.js.
-- **vite.config.ts**: Vite configuration file.
+- **vite.config.ts**: Vite configuration file is using env.process to get the values from the environment variables so make sure you have your own `.env.development` and `.env.production` files.
 
 ## Running the Project Locally
 
@@ -33,17 +33,16 @@ To run the project locally, follow these steps:
 2. **Start the Development Server**: Start the Vite development server by running:
 
     ```sh
-    npm run start
+    npm start
     ```
 
     This will start the development server and open the application in your default web browser.
 
-3. **Access the Editor**: This is the properties editor that will be available to you when you add the custom widget to Azure API Management:
+3. **Open Developer Portal as Admin**: You want to append `?MS_APIM_CW_localhost_port=<port-number>` to the end of the URL to run the developer portal in the context of the custom widget. The port number should match the port number that Vite is running on.
 
-    ```sh
-    http://localhost:3000/editor.html
-    ```
+    For example, if Vite is running on port 3000, you would append `?MS_APIM_CW_localhost_port=3000` to the developer portal URL.
 
+    > Note: You may need to log in as an admin to access the developer portal in edit mode.
 
 ## Deploying the Widget
 
